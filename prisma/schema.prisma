@@ -1,12 +1,12 @@
 // Prisma Schema for Lumina Agency
-// Database: SQLite for development
+// Database: MySQL for production
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -33,12 +33,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String? @db.Text
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -71,11 +71,11 @@ model Contact {
   phone       String?
   projectType String   // web, mobile, uiux, other
   budget      String?  // <5k, 5k-10k, 10k-25k, 25k+
-  message     String
+  message     String   @db.Text
   status      String   @default("new") // new, contacted, qualified, converted, rejected
-  notes       String?
+  notes       String?  @db.Text
   ipAddress   String?
-  userAgent   String?
+  userAgent   String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -87,14 +87,14 @@ model Project {
   title          String
   titleAr        String?
   slug           String   @unique
-  description    String
-  descriptionAr  String?
+  description    String   @db.Text
+  descriptionAr  String?  @db.Text
   category       String   // Web, SaaS, Mobile
-  technologies   String   // JSON array stored as string
+  technologies   String   @db.Text // JSON array stored as string
   clientName     String?
   completionDate DateTime?
   featured       Boolean  @default(false)
-  images         String?  // JSON array stored as string
+  images         String?  @db.Text // JSON array stored as string
   caseStudyUrl   String?
   liveUrl        String?
   githubUrl      String?
@@ -109,8 +109,8 @@ model Project {
 
 model Testimonial {
   id            String   @id @default(cuid())
-  quote         String
-  quoteAr       String?
+  quote         String   @db.Text
+  quoteAr       String?  @db.Text
   authorName    String
   authorRole    String?
   authorRoleAr  String?
@@ -132,8 +132,8 @@ model TeamMember {
   nameAr       String?
   role         String
   roleAr       String?
-  bio          String?
-  bioAr        String?
+  bio          String?  @db.Text
+  bioAr        String?  @db.Text
   image        String?
   linkedin     String?
   twitter      String?
@@ -151,13 +151,13 @@ model Service {
   title            String
   titleAr          String?
   slug             String   @unique
-  shortDescription String
-  shortDescAr      String?
-  fullDescription  String?
-  fullDescAr       String?
+  shortDescription String   @db.Text
+  shortDescAr      String?  @db.Text
+  fullDescription  String?  @db.LongText
+  fullDescAr       String?  @db.LongText
   icon             String?
-  features         String?  // JSON array stored as string
-  featuresAr       String?  // JSON array stored as string
+  features         String?  @db.Text // JSON array stored as string
+  featuresAr       String?  @db.Text // JSON array stored as string
   pricingFrom      Float?
   displayOrder     Int      @default(0)
   isActive         Boolean  @default(true)
@@ -172,14 +172,14 @@ model BlogPost {
   title       String
   titleAr     String?
   slug        String    @unique
-  excerpt     String?
-  excerptAr   String?
-  content     String
-  contentAr   String?
+  excerpt     String?   @db.Text
+  excerptAr   String?   @db.Text
+  content     String    @db.LongText
+  contentAr   String?   @db.LongText
   coverImage  String?
   authorId    String?
   category    String?
-  tags        String?   // JSON array stored as string
+  tags        String?   @db.Text // JSON array stored as string
   status      String    @default("draft") // draft, published
   views       Int       @default(0)
   publishedAt DateTime?
@@ -202,11 +202,11 @@ model QuizResult {
   id        String   @id @default(cuid())
   quizType  String   // business, developer
   score     Int
-  answers   String   // JSON array stored as string
-  result    String?
+  answers   String   @db.Text // JSON array stored as string
+  result    String?  @db.Text
   userEmail String?
   ipAddress String?
-  userAgent String?
+  userAgent String?  @db.Text
   createdAt DateTime @default(now())
 }
 
