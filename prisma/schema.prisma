@@ -1,0 +1,221 @@
+// Prisma Schema for Lumina Agency
+// Database: SQLite for development
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTHENTICATION ====================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          String    @default("admin") // admin, editor, viewer
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ==================== CONTACT / CRM ====================
+
+model Contact {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  projectType String   // web, mobile, uiux, other
+  budget      String?  // <5k, 5k-10k, 10k-25k, 25k+
+  message     String
+  status      String   @default("new") // new, contacted, qualified, converted, rejected
+  notes       String?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ==================== PORTFOLIO ====================
+
+model Project {
+  id             String   @id @default(cuid())
+  title          String
+  titleAr        String?
+  slug           String   @unique
+  description    String
+  descriptionAr  String?
+  category       String   // Web, SaaS, Mobile
+  technologies   String   // JSON array stored as string
+  clientName     String?
+  completionDate DateTime?
+  featured       Boolean  @default(false)
+  images         String?  // JSON array stored as string
+  caseStudyUrl   String?
+  liveUrl        String?
+  githubUrl      String?
+  displayOrder   Int      @default(0)
+  status         String   @default("draft") // draft, published
+  views          Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ==================== TESTIMONIALS ====================
+
+model Testimonial {
+  id            String   @id @default(cuid())
+  quote         String
+  quoteAr       String?
+  authorName    String
+  authorRole    String?
+  authorRoleAr  String?
+  authorCompany String?
+  authorImage   String?
+  rating        Int      @default(5)
+  featured      Boolean  @default(false)
+  approved      Boolean  @default(false)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ==================== TEAM ====================
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  name         String
+  nameAr       String?
+  role         String
+  roleAr       String?
+  bio          String?
+  bioAr        String?
+  image        String?
+  linkedin     String?
+  twitter      String?
+  github       String?
+  displayOrder Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ==================== SERVICES ====================
+
+model Service {
+  id               String   @id @default(cuid())
+  title            String
+  titleAr          String?
+  slug             String   @unique
+  shortDescription String
+  shortDescAr      String?
+  fullDescription  String?
+  fullDescAr       String?
+  icon             String?
+  features         String?  // JSON array stored as string
+  featuresAr       String?  // JSON array stored as string
+  pricingFrom      Float?
+  displayOrder     Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// ==================== BLOG ====================
+
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  titleAr     String?
+  slug        String    @unique
+  excerpt     String?
+  excerptAr   String?
+  content     String
+  contentAr   String?
+  coverImage  String?
+  authorId    String?
+  category    String?
+  tags        String?   // JSON array stored as string
+  status      String    @default("draft") // draft, published
+  views       Int       @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// ==================== STATISTICS ====================
+
+model SiteStat {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Int
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== QUIZ RESULTS ====================
+
+model QuizResult {
+  id        String   @id @default(cuid())
+  quizType  String   // business, developer
+  score     Int
+  answers   String   // JSON array stored as string
+  result    String?
+  userEmail String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+// ==================== NEWSLETTER ====================
+
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  isActive       Boolean   @default(true)
+  subscribedAt   DateTime  @default(now())
+  unsubscribedAt DateTime?
+}

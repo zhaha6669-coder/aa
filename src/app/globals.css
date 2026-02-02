@@ -1,0 +1,215 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   CSS CUSTOM PROPERTIES (Design Tokens)
+   ============================================
+   All global values defined here for consistency.
+   Components should use these tokens instead of hardcoded values.
+*/
+:root {
+    /* Colors */
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+    --neon-purple: #a855f7;
+    --neon-cyan: #22d3ee;
+    --lumina-bg: #0f0518;
+    --lumina-panel: #1a1625;
+    
+    /* Z-Index Scale (mirrors Tailwind config) */
+    --z-background: -10;
+    --z-behind: -1;
+    --z-base: 0;
+    --z-content: 10;
+    --z-elevated: 20;
+    --z-sticky: 30;
+    --z-header: 40;
+    --z-dropdown: 50;
+    --z-modal-backdrop: 90;
+    --z-modal: 100;
+    --z-toast: 110;
+    
+    /* Spacing Scale */
+    --section-padding-x: clamp(1.5rem, 5vw, 5rem);
+    --section-padding-y: clamp(3rem, 8vw, 6rem);
+}
+
+/* ============================================
+   BASE LAYER - Global Resets & Defaults
+   ============================================
+*/
+@layer base {
+    html {
+        scroll-behavior: smooth;
+        background-color: var(--lumina-bg);
+        overscroll-behavior-y: none;
+        /* Prevent horizontal scroll on mobile */
+        overflow-x: hidden;
+    }
+
+    body {
+        font-family: var(--font-inter), sans-serif;
+        background-color: var(--lumina-bg);
+        color: white;
+        min-height: 100vh;
+        overscroll-behavior-y: none;
+        /* Seamless background - prevent any gaps */
+        margin: 0;
+        padding: 0;
+        /* Prevent horizontal scroll on mobile */
+        overflow-x: hidden;
+        width: 100%;
+    }
+
+    /* Ensure all sections blend seamlessly */
+    section, main, footer, header {
+        background-color: transparent;
+    }
+
+    /* RTL Support */
+    html[dir="rtl"] body {
+        font-family: var(--font-cairo), sans-serif;
+    }
+
+    /* Focus States - Accessibility */
+    *:focus-visible {
+        @apply outline-none ring-2 ring-purple-500/50 ring-offset-2 ring-offset-lumina-dark;
+    }
+
+    button:focus-visible {
+        @apply ring-2 ring-purple-400/60;
+    }
+
+    /* Font Smoothing */
+    * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* ============================================
+   COMPONENTS LAYER - Reusable Component Styles
+   ============================================
+   These are ISOLATED styles that don't leak.
+   Each component class is self-contained.
+*/
+@layer components {
+    /* 
+     * Section Container - Use for all page sections
+     * Provides consistent padding and isolation
+     */
+    .section-container {
+        @apply relative w-full;
+        @apply px-[var(--section-padding-x)] py-[var(--section-padding-y)];
+        /* Isolation prevents z-index from affecting parent/siblings */
+        isolation: isolate;
+    }
+
+    /* 
+     * Section Background Glow - Decorative element
+     * Always positioned BEHIND content within its section
+     */
+    .section-glow {
+        @apply absolute pointer-events-none;
+        @apply top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2;
+        @apply rounded-full blur-[100px];
+        z-index: var(--z-behind);
+    }
+
+    /*
+     * Panel/Card Base Style
+     * Isolated card with proper stacking context
+     */
+    .panel-base {
+        @apply relative;
+        @apply bg-lumina-panel/80 backdrop-blur-sm;
+        @apply border border-white/[0.08];
+        @apply rounded-2xl;
+        /* Creates new stacking context - internal z-index won't leak */
+        isolation: isolate;
+    }
+
+    .panel-hover {
+        @apply transition-all duration-300;
+        @apply hover:border-purple-500/40 hover:bg-lumina-panel;
+        @apply hover:shadow-[0_8px_32px_rgba(139,92,246,0.15)];
+    }
+
+    /*
+     * Modal Styles - Highest layer
+     * Uses CSS custom properties for consistent z-index
+     */
+    .modal-backdrop {
+        @apply fixed inset-0;
+        @apply bg-black/80 backdrop-blur-md;
+        @apply flex items-center justify-center p-4;
+        z-index: var(--z-modal-backdrop);
+    }
+
+    .modal-content {
+        @apply relative w-full max-w-lg;
+        @apply bg-lumina-panel border border-white/10;
+        @apply rounded-3xl shadow-2xl;
+        @apply max-h-[90vh] overflow-y-auto overflow-x-hidden;
+        z-index: var(--z-modal);
+        /* Isolation for internal elements */
+        isolation: isolate;
+    }
+
+    .modal-close-btn {
+        @apply absolute top-4 right-4;
+        @apply w-10 h-10 rounded-full;
+        @apply bg-white/10 hover:bg-white/20;
+        @apply flex items-center justify-center;
+        @apply text-white transition-colors;
+        /* Within modal context */
+        z-index: 10;
+    }
+
+    /* RTL Modal close button */
+    [dir="rtl"] .modal-close-btn {
+        @apply right-auto left-4;
+    }
+}
+
+/* ============================================
+   UTILITIES LAYER - Helper Classes
+   ============================================
+*/
+@layer utilities {
+    /* Text Effects */
+    .text-glow {
+        text-shadow: 0 0 25px rgba(139, 92, 246, 0.6);
+    }
+
+    .text-glow-white {
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Border/Box Effects */
+    .border-glow {
+        box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+    }
+
+    /* Grid Pattern Background */
+    .bg-grid {
+        background-size: 50px 50px;
+        background-image: 
+            linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    }
+
+    /* Legacy panel style (for backward compatibility) */
+    .panel-modern {
+        background: rgba(26, 22, 37, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Isolation utility - Creates new stacking context */
+    .isolate-layer {
+        isolation: isolate;
+    }
+}
