@@ -1,5 +1,6 @@
 // Prisma Schema for Lumina Agency
 // Database: MySQL for production
+// Full CMS Control
 
 generator client {
   provider = "prisma-client-js"
@@ -25,6 +26,12 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+  notifications Notification[]
+  activityLogs  ActivityLog[]
+  blogPosts     BlogPost[]     @relation("AuthorPosts")
+
+  @@index([email])
+  @@index([role])
 }
 
 model Account {
@@ -44,6 +51,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -52,6 +60,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -74,35 +84,48 @@ model Contact {
   message     String   @db.Text
   status      String   @default("new") // new, contacted, qualified, converted, rejected
   notes       String?  @db.Text
+  assignedTo  String?  // User ID
+  source      String?  // website, referral, social
   ipAddress   String?
   userAgent   String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  orders      Order[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ==================== PORTFOLIO ====================
 
 model Project {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   title          String
   titleAr        String?
-  slug           String   @unique
-  description    String   @db.Text
-  descriptionAr  String?  @db.Text
-  category       String   // Web, SaaS, Mobile
-  technologies   String   @db.Text // JSON array stored as string
+  slug           String    @unique
+  description    String    @db.Text
+  descriptionAr  String?   @db.Text
+  categoryId     String?
+  category       Category? @relation(fields: [categoryId], references: [id])
+  technologies   String    @db.Text // JSON array stored as string
   clientName     String?
   completionDate DateTime?
-  featured       Boolean  @default(false)
-  images         String?  @db.Text // JSON array stored as string
+  featured       Boolean   @default(false)
+  images         String?   @db.Text // JSON array stored as string
   caseStudyUrl   String?
   liveUrl        String?
   githubUrl      String?
-  displayOrder   Int      @default(0)
-  status         String   @default("draft") // draft, published
-  views          Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  displayOrder   Int       @default(0)
+  status         String    @default("draft") // draft, published
+  views          Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([categoryId])
+  @@index([featured])
+  @@index([status])
 }
 
 // ==================== TESTIMONIALS ====================
@@ -159,10 +182,16 @@ model Service {
   features         String?  @db.Text // JSON array stored as string
   featuresAr       String?  @db.Text // JSON array stored as string
   pricingFrom      Float?
+  pricingTo        Float?
+  currency         String   @default("USD")
   displayOrder     Int      @default(0)
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  orders           Order[]
+
+  @@index([slug])
+  @@index([isActive])
 }
 
 // ==================== BLOG ====================
@@ -178,13 +207,22 @@ model BlogPost {
   contentAr   String?   @db.LongText
   coverImage  String?
   authorId    String?
-  category    String?
+  author      User?     @relation("AuthorPosts", fields: [authorId], references: [id])
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
   tags        String?   @db.Text // JSON array stored as string
   status      String    @default("draft") // draft, published
   views       Int       @default(0)
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  comments    Comment[]
+
+  @@index([slug])
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([publishedAt])
 }
 
 // ==================== STATISTICS ====================
@@ -215,7 +253,300 @@ model QuizResult {
 model NewsletterSubscriber {
   id             String    @id @default(cuid())
   email          String    @unique
+  name           String?
   isActive       Boolean   @default(true)
   subscribedAt   DateTime  @default(now())
   unsubscribedAt DateTime?
+
+  @@index([email])
+  @@index([isActive])
+}
+
+// ==================== CATEGORIES ====================
+
+model Category {
+  id           String     @id @default(cuid())
+  name         String
+  nameAr       String?
+  slug         String     @unique
+  description  String?    @db.Text
+  descriptionAr String?   @db.Text
+  type         String     // project, blog, service
+  parentId     String?
+  parent       Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children     Category[] @relation("CategoryChildren")
+  icon         String?
+  color        String?
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  projects     Project[]
+  blogPosts    BlogPost[]
+
+  @@index([slug])
+  @@index([type])
+  @@index([parentId])
+}
+
+// ==================== COMMENTS ====================
+
+model Comment {
+  id          String    @id @default(cuid())
+  postId      String
+  post        BlogPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  authorName  String
+  authorEmail String
+  content     String    @db.Text
+  approved    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([postId])
+  @@index([parentId])
+  @@index([approved])
+}
+
+// ==================== ORDERS / INVOICES ====================
+
+model Order {
+  id          String   @id @default(cuid())
+  orderNumber String   @unique
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id])
+  amount      Float
+  currency    String   @default("USD")
+  status      String   @default("pending") // pending, confirmed, in_progress, completed, cancelled
+  paymentStatus String @default("unpaid") // unpaid, partial, paid, refunded
+  description String?  @db.Text
+  notes       String?  @db.Text
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderNumber])
+  @@index([contactId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([paymentStatus])
+}
+
+// ==================== NOTIFICATIONS ====================
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // contact, comment, order, system
+  title     String
+  titleAr   String?
+  message   String   @db.Text
+  messageAr String?  @db.Text
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([type])
+}
+
+// ==================== ACTIVITY LOGS ====================
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // created, updated, deleted, viewed, login, logout
+  entity    String   // project, contact, service, order, etc.
+  entityId  String?
+  details   String?  @db.Text
+  ipAddress String?
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ==================== SITE SETTINGS ====================
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   @db.Text
+  valueAr     String?  @db.Text
+  type        String   @default("string") // string, number, boolean, json, image, color
+  group       String   @default("general") // general, seo, social, contact, appearance
+  label       String?
+  labelAr     String?
+  description String?
+  isPublic    Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@index([group])
+}
+
+// ==================== DYNAMIC PAGES ====================
+
+model Page {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String?
+  slug        String   @unique
+  content     String   @db.LongText
+  contentAr   String?  @db.LongText
+  metaTitle   String?
+  metaTitleAr String?
+  metaDesc    String?  @db.Text
+  metaDescAr  String?  @db.Text
+  template    String   @default("default") // default, landing, contact, about
+  status      String   @default("draft") // draft, published
+  displayOrder Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([status])
+}
+
+// ==================== NAVIGATION MENUS ====================
+
+model Menu {
+  id          String     @id @default(cuid())
+  name        String
+  nameAr      String?
+  location    String     @unique // header, footer, sidebar
+  items       MenuItem[]
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model MenuItem {
+  id          String     @id @default(cuid())
+  menuId      String
+  menu        Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id])
+  children    MenuItem[] @relation("MenuItemChildren")
+  label       String
+  labelAr     String?
+  url         String?
+  pageId      String?
+  target      String     @default("_self") // _self, _blank
+  icon        String?
+  displayOrder Int       @default(0)
+  isActive    Boolean    @default(true)
+
+  @@index([menuId])
+  @@index([parentId])
+}
+
+// ==================== MEDIA LIBRARY ====================
+
+model Media {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  path        String
+  url         String
+  alt         String?
+  altAr       String?
+  caption     String?
+  captionAr   String?
+  folder      String   @default("uploads")
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([folder])
+  @@index([mimeType])
+}
+
+// ==================== FAQ ====================
+
+model FAQ {
+  id          String   @id @default(cuid())
+  question    String   @db.Text
+  questionAr  String?  @db.Text
+  answer      String   @db.Text
+  answerAr    String?  @db.Text
+  categoryId  String?
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+// ==================== PARTNERS / CLIENTS ====================
+
+model Partner {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String?
+  logo        String?
+  website     String?
+  description String?  @db.Text
+  descriptionAr String? @db.Text
+  type        String   @default("client") // client, partner, sponsor
+  featured    Boolean  @default(false)
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([featured])
+}
+
+// ==================== PRICING PLANS ====================
+
+model PricingPlan {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String?
+  description String?  @db.Text
+  descriptionAr String? @db.Text
+  price       Float
+  currency    String   @default("USD")
+  period      String   @default("monthly") // monthly, yearly, one-time
+  features    String   @db.Text // JSON array
+  featuresAr  String?  @db.Text
+  highlighted Boolean  @default(false)
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+// ==================== SOCIAL LINKS ====================
+
+model SocialLink {
+  id          String   @id @default(cuid())
+  platform    String   // facebook, twitter, instagram, linkedin, youtube, tiktok, whatsapp
+  url         String
+  icon        String?
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([platform])
 }
